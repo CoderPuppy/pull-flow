@@ -38,17 +38,20 @@ var parallel = pull.Through(function (read, hwm, lwm) {
 
 
 var serial = pull.Through(function (read) {
-  var queue = [], inFlight
+  var queue = [], inFlight, draining = false
 
   return function (end, cb) {
     queue.push({end: end, cb: cb})
     if(queue.length > 1) return
 
     ;(function drain() {
+      if(draining) return
+      draining = true
       read(queue[0].end, function (end, data) {
+        draining = false
         var cb = queue.shift().cb
         cb(end, data)
-        if(queue.length) drain()
+        if(queue.length && !draining) drain()
       })
     })()
   }
